@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PriceRadar - Dashboard Reselling</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            min-width: 150px;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+
+        .filters-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #667eea;
+            font-size: 0.95em;
+        }
+
+        input, select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-reset {
+            background: #f0f0f0;
+            color: #333;
+            flex: 1;
+        }
+
+        .btn-reset:hover {
+            background: #e0e0e0;
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .products-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 25px;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .product-card {
+            background: linear-gradient(to bottom, #fff, #f8f9ff);
+            border: 2px solid #e8e8ff;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.25);
+            border-color: #667eea;
+        }
+
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #f0f0f0;
+        }
+
+        .product-info {
+            padding: 20px;
+        }
+
+        .product-title {
+            font-weight: 700;
+            font-size: 1.1em;
+            color: #333;
+            margin-bottom: 12px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .product-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .badge-marketplace {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .price-section {
+            margin-bottom: 12px;
+        }
+
+        .price-label {
+            font-size: 0.8em;
+            color: #999;
+            text-transform: uppercase;
+        }
+
+        .price {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .original-price {
+            text-decoration: line-through;
+            color: #999;
+            font-size: 0.95em;
+        }
+
+        .savings {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .savings-item {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f5f5f5;
+            text-align: center;
+        }
+
+        .savings-label {
+            font-size: 0.75em;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .savings-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .profit-section {
+            background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .profit-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .profit-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .profit-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .profit-value {
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .roi-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .roi-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .seller-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 12px;
+        }
+
+        .seller-name {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .seller-score {
+            padding: 4px 12px;
+            background: #fff3cd;
+            color: #856404;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .btn-card {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-card:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .spinner {
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 20px;
+                align-items: flex-start;
+            }
+
+            .header-stats {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>📊 PriceRadar</h1>
+                <p style="color: #999; margin-top: 5px;">Dashboard Reselling - Analisi Marketplace in Tempo Reale</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat-box">
+                    <div class="stat-label">Annunci</div>
+                    <div class="stat-value" id="total-listings">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">ROI Medio</div>
+                    <div class="stat-value" id="avg-roi">0%</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Affari</div>
+                    <div class="stat-value" id="good-deals">0</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="filters-section">
+            <h2 style="margin-bottom: 20px; color: #667eea;">🔍 Filtri Ricerca</h2>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="marketplace">Marketplace</label>
+                    <select id="marketplace">
+                        <option value="">Tutti</option>
+                        <option value="vinted">Vinted</option>
+                        <option value="ebay">eBay</option>
+                        <option value="depop">Depop</option>
+                        <option value="subito">Subito.it</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="min-price">Prezzo Min (€)</label>
+                    <input type="number" id="min-price" placeholder="0" min="0">
+                </div>
+                <div class="filter-group">
+                    <label for="max-price">Prezzo Max (€)</label>
+                    <input type="number" id="max-price" placeholder="1000" min="0">
+                </div>
+                <div class="filter-group">
+                    <label for="min-roi">ROI Minimo (%)</label>
+                    <input type="number" id="min-roi" placeholder="10" min="0">
+                </div>
+                <div class="filter-group">
+                    <label for="brand">Marca</label>
+                    <input type="text" id="brand" placeholder="Nike, Adidas...">
+                </div>
+                <div class="filter-group">
+                    <label for="color">Colore</label>
+                    <select id="color">
+                        <option value="">Tutti</option>
+                        <option value="nero">Nero</option>
+                        <option value="bianco">Bianco</option>
+                        <option value="grigio">Grigio</option>
+                        <option value="blu">Blu</option>
+                        <option value="rosso">Rosso</option>
+                        <option value="verde">Verde</option>
+                    </select>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-search" onclick="applyFilters()">🔎 Cerca</button>
+                <button class="btn-reset" onclick="resetFilters()">↻ Ripristina</button>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-container">
+                <div class="chart-title">📈 Distribuzione Prezzi</div>
+                <canvas id="priceChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">💰 ROI vs Prezzo</div>
+                <canvas id="roiChart"></canvas>
+            </div>
+        </div>
+
+        <div class="products-section">
+            <h2 class="section-title">🏆 Migliori Affari</h2>
+            <div id="products-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Caricamento annunci...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allProducts = [];
+        let priceChart, roiChart;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadDashboardData();
+            initCharts();
+        });
+
+        async function loadDashboardData() {
+            try {
+                const response = await axios.get('/api/products');
+                allProducts = response.data.products || [];
+                updateStats();
+                renderProducts(allProducts);
+                updateCharts();
+            } catch (error) {
+                console.error('Errore caricamento dati:', error);
+                document.getElementById('products-container').innerHTML = 
+                    `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Errore nel caricamento. Riprova.</p></div>`;
+            }
+        }
+
+        function updateStats() {
+            const totalListings = allProducts.length;
+            const avgRoi = allProducts.length > 0 
+                ? (allProducts.reduce((sum, p) => sum + (p.roi_stimato || 0), 0) / allProducts.length).toFixed(1)
+                : 0;
+            const goodDeals = allProducts.filter(p => (p.roi_stimato || 0) > 15).length;
+
+            document.getElementById('total-listings').textContent = totalListings;
+            document.getElementById('avg-roi').textContent = avgRoi + '%';
+            document.getElementById('good-deals').textContent = goodDeals;
+        }
+
+        function renderProducts(products) {
+            const container = document.getElementById('products-container');
+            
+            if (products.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>Nessun annuncio trovato.</p></div>`;
+                return;
+            }
+
+            container.innerHTML = products.map(product => `
+                <div class="product-card">
+                    <img src="${product.foto_principale || 'https://via.placeholder.com/280x200?text=No+Image'}" 
+                         alt="${product.titolo}" class="product-image" onerror="this.src='https://via.placeholder.com/280x200?text=No+Image'">
+                    <div class="product-info">
+                        <div class="product-title">${product.titolo}</div>
+                        <div class="product-meta">
+                            <span class="badge badge-marketplace">${product.marketplace}</span>
+                            <span>⭐ ${(product.score_venditore || 0).toFixed(0)}/100</span>
+                        </div>
+                        
+                        <div class="price-section">
+                            <div class="price-label">Prezzo</div>
+                            <div class="price">€${product.prezzo.toFixed(2)}</div>
+                        </div>
+
+                        <div class="savings">
+                            <div class="savings-item">
+                                <div class="savings-label">Risparmio</div>
+                                <div class="savings-value">€${(product.risparmio_euro || 0).toFixed(2)}</div>
+                            </div>
+                            <div class="savings-item">
+                                <div class="savings-label">ROI</div>
+                                <div class="savings-value">${(product.roi_stimato || 0).toFixed(1)}%</div>
+                            </div>
+                        </div>
+
+                        <div class="profit-section">
+                            <div class="profit-item">
+                                <span class="profit-label">💎 Profitto</span>
+                                <span class="profit-value">€${(product.profitto_stimato || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <div class="seller-info">
+                            <span class="seller-name">👤 ${product.venditore || 'N/A'}</span>
+                            <span class="seller-score">${(product.affidabilita || 0).toFixed(0)}/100</span>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn-card" onclick="window.open('${product.url}', '_blank')">🔗 Apri</button>
+                            <button class="btn-card" onclick="alert('Aggiunto ai preferiti!')">❤️</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function initCharts() {
+            const priceCtx = document.getElementById('priceChart').getContext('2d');
+            const roiCtx = document.getElementById('roiChart').getContext('2d');
+
+            priceChart = new Chart(priceCtx, {
+                type: 'bar',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            roiChart = new Chart(roiCtx, {
+                type: 'scatter',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            updateCharts();
+        }
+
+        function updateCharts() {
+            if (!priceChart || !roiChart) return;
+
+            const priceRanges = {};
+            allProducts.forEach(p => {
+                const range = `€${Math.floor(p.prezzo / 50) * 50}-${Math.floor(p.prezzo / 50) * 50 + 50}`;
+                priceRanges[range] = (priceRanges[range] || 0) + 1;
+            });
+
+            priceChart.data = {
+                labels: Object.keys(priceRanges),
+                datasets: [{
+                    label: 'Annunci',
+                    data: Object.values(priceRanges),
+                    backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                    borderColor: '#667eea',
+                    borderWidth: 2
+                }]
+            };
+            priceChart.update();
+
+            roiChart.data = {
+                datasets: [{
+                    label: 'Affari',
+                    data: allProducts.map(p => ({ x: p.prezzo, y: p.roi_stimato || 0 })),
+                    backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                    borderColor: '#667eea',
+                    borderWidth: 2,
+                    pointRadius: 5
+                }]
+            };
+            roiChart.update();
+        }
+
+        function applyFilters() {
+            const marketplace = document.getElementById('marketplace').value;
+            const minPrice = parseFloat(document.getElementById('min-price').value) || 0;
+            const maxPrice = parseFloat(document.getElementById('max-price').value) || Infinity;
+            const minRoi = parseFloat(document.getElementById('min-roi').value) || 0;
+            const brand = document.getElementById('brand').value.toLowerCase();
+
+            const filtered = allProducts.filter(p => {
+                return (!marketplace || p.marketplace === marketplace) &&
+                       p.prezzo >= minPrice &&
+                       p.prezzo <= maxPrice &&
+                       (p.roi_stimato || 0) >= minRoi &&
+                       (!brand || (p.brand || '').toLowerCase().includes(brand));
+            });
+
+            renderProducts(filtered);
+        }
+
+        function resetFilters() {
+            document.getElementById('marketplace').value = '';
+            document.getElementById('min-price').value = '';
+            document.getElementById('max-price').value = '';
+            document.getElementById('min-roi').value = '';
+            document.getElementById('brand').value = '';
+            renderProducts(allProducts);
+        }
+    </script>
+</body>
+</html>
