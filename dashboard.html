@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinted Hunter v2.0 — Scanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-deep:#0b1620;--bg-panel:#101f2c;--bg-card:#142736;--line:#1f3a4d;
+    --text-main:#dce8ee;--text-dim:#74909f;--signal:#4fd1a5;--signal-dim:#1f4d3d;
+    --alert:#e8a23d;--alert-dim:#4d3a1f;--danger:#e85d5d;
+    --mono:"JetBrains Mono","SF Mono","Consolas",monospace;
+    --sans:"Inter",-apple-system,"Segoe UI",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg-deep);color:var(--text-main);font-family:var(--sans);min-height:100vh;
+    background-image:radial-gradient(circle at 80% 0%,rgba(79,209,165,.06),transparent 50%)}
+  header{padding:22px 28px 16px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .brand h1{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text-main)}
+  .brand h1 .blip{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--signal);margin-right:8px;box-shadow:0 0 0 0 rgba(79,209,165,.7);animation:pulse 2s infinite;vertical-align:middle}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,209,165,.6)}70%{box-shadow:0 0 0 8px rgba(79,209,165,0)}100%{box-shadow:0 0 0 0 rgba(79,209,165,0)}}
+  .brand .tagline{font-size:11px;color:var(--text-dim);font-family:var(--mono)}
+  .header-stats{display:flex;gap:22px;font-family:var(--mono)}
+  .header-stats .stat .n{font-size:18px;font-weight:700;color:var(--signal);display:block}
+  .header-stats .stat .l{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:0}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+  aside{padding:20px 16px;border-right:1px solid var(--line);min-height:calc(100vh - 80px)}
+  .sidebar-section{margin-bottom:22px}
+  .sidebar-section .eyebrow{font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:block}
+  .profilo-item{display:flex;justify-content:space-between;align-items:center;padding:8px 9px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text-dim);transition:all .15s;margin-bottom:2px}
+  .profilo-item:hover{background:var(--bg-card);color:var(--text-main)}
+  .profilo-item.active{background:var(--signal-dim);color:var(--signal);font-weight:600}
+  .profilo-item .count{font-family:var(--mono);font-size:11px;opacity:.8}
+  select.filtro-select,input.filtro-input{width:100%;background:var(--bg-card);border:1px solid var(--line);color:var(--text-main);padding:7px 9px;border-radius:6px;font-size:12px;font-family:var(--sans);margin-bottom:6px}
+  input.filtro-input::placeholder{color:var(--text-dim)}
+  .filtro-toggle{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-dim)}
+  .filtro-toggle:hover{background:var(--bg-card)}
+  .filtro-toggle input{accent-color:var(--signal)}
+  main{padding:20px 26px}
+  .feed-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .feed-header h2{font-size:14px;color:var(--text-dim);font-weight:500;font-family:var(--mono)}
+  /* Stats bar */
+  .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+  .stat-card{background:var(--bg-card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .stat-card .sv{font-size:22px;font-weight:700;color:var(--signal);font-family:var(--mono)}
+  .stat-card .sl{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+  /* Chart */
+  .chart-wrap{background:var(--bg-card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:18px;display:none}
+  .chart-wrap.visible{display:block}
+  .chart-wrap h3{font-size:13px;color:var(--text-dim);margin-bottom:12px;font-family:var(--mono)}
+  /* Feed */
+  .feed{display:flex;flex-direction:column;gap:10px}
+  .card{background:var(--bg-card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;grid-template-columns:72px 1fr auto;gap:14px;align-items:start;transition:border-color .15s}
+  .card:hover{border-color:#2a4a60}
+  .card.is-affare{border-left:3px solid var(--signal)}
+  .card.is-sospetto{border-left:3px solid var(--alert)}
+  .card-thumb{width:72px;height:72px;border-radius:8px;background:var(--bg-panel) center/cover no-repeat;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:9px;font-family:var(--mono)}
+  .card-body{min-width:0}
+  .card-title{font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card-modello{font-size:11px;color:var(--signal);margin-bottom:4px;font-family:var(--mono)}
+  .card-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:6px}
+  .card-meta .platform-tag{background:var(--bg-panel);padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px}
+  .card-tags{display:flex;gap:5px;flex-wrap:wrap}
+  .tag{font-size:11px;font-family:var(--mono);padding:2px 7px;border-radius:4px;font-weight:600}
+  .tag.affare{background:var(--signal-dim);color:var(--signal)}
+  .tag.sospetto{background:var(--alert-dim);color:var(--alert)}
+  .tag.limited{background:#2a1f4d;color:#b8a0ff}
+  .card-price{text-align:right;font-family:var(--mono)}
+  .card-price .price{font-size:20px;font-weight:700;color:var(--text-main)}
+  .card-price .price.affare{color:var(--signal)}
+  .card-price .roi-row{font-size:11px;margin-top:3px}
+  .card-price .roi-pos{color:var(--signal)}
+  .card-price .roi-neg{color:var(--danger)}
+  .card-price .media{font-size:11px;color:var(--text-dim);margin-top:2px}
+  .card-price a.apri{display:inline-block;margin-top:8px;font-size:11px;color:var(--bg-deep);background:var(--signal);padding:4px 11px;border-radius:5px;text-decoration:none;font-weight:700}
+  .card-price a.apri:hover{opacity:.85}
+  .loading{text-align:center;padding:50px;color:var(--text-dim);font-family:var(--mono);font-size:13px}
+  .empty-state{text-align:center;padding:70px 20px;color:var(--text-dim);font-family:var(--mono)}
+  .btn{background:var(--bg-card);border:1px solid var(--line);color:var(--text-main);padding:5px 11px;border-radius:5px;cursor:pointer;font-size:11px;font-family:var(--sans)}
+  .btn:hover{border-color:var(--signal);color:var(--signal)}
+  .btn.active{background:var(--signal-dim);border-color:var(--signal);color:var(--signal)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1><span class="blip"></span>VINTED HUNTER <small style="font-size:12px;color:var(--text-dim)">v2.0</small></h1>
+    <span class="tagline">scanner multi-marketplace · assistente AI per il reselling · acquisto sempre manuale</span>
+  </div>
+  <div class="header-stats">
+    <div class="stat"><span class="n" id="stat-totale">—</span><span class="l">Trovati</span></div>
+    <div class="stat"><span class="n" id="stat-affari">—</span><span class="l">Affari</span></div>
+    <div class="stat"><span class="n" id="stat-roi">—</span><span class="l">ROI Medio</span></div>
+    <div class="stat"><span class="n" id="stat-score">—</span><span class="l">Score Medio</span></div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sidebar-section">
+      <span class="eyebrow">Profili di ricerca</span>
+      <div id="lista-profili">
+        <div class="profilo-item active" data-profilo="">
+          <span>Tutti</span><span class="count" id="count-tutti">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <span class="eyebrow">Ricerca testuale</span>
+      <input class="filtro-input" id="filtro-q" placeholder="titolo, marca, modello..." type="text">
+    </div>
+
+    <div class="sidebar-section">
+      <span class="eyebrow">Marketplace</span>
+      <select class="filtro-select" id="filtro-piattaforma">
+        <option value="">Tutti</option>
+        <option value="vinted">Vinted</option>
+        <option value="ebay">eBay</option>
+        <option value="depop">Depop</option>
+        <option value="subito">Subito.it</option>
+      </select>
+    </div>
+
+    <div class="sidebar-section">
+      <span class="eyebrow">Attributi prodotto</span>
+      <input class="filtro-input" id="filtro-marca" placeholder="Marca (es. Nike)">
+      <input class="filtro-input" id="filtro-modello" placeholder="Modello (es. Air Jordan 4)">
+      <input class="filtro-input" id="filtro-colore" placeholder="Colore (es. nero)">
+      <input class="filtro-input" id="filtro-taglia" placeholder="Taglia (es. M, 42)">
+    </div>
+
+    <div class="sidebar-section">
+      <span class="eyebrow">Filtri economici</span>
+      <input class="filtro-input" id="filtro-roi-min" placeholder="ROI minimo % (es. 15)" type="number">
+      <input class="filtro-input" id="filtro-score-min" placeholder="Score minimo (es. 70)" type="number">
+    </div>
+
+    <div class="sidebar-section">
+      <span class="eyebrow">Filtri rapidi</span>
+      <label class="filtro-toggle"><input type="checkbox" id="filtro-solo-affari"> Solo affari</label>
+    </div>
+
+    <div class="sidebar-section">
+      <span class="eyebrow">Ordina per</span>
+      <select class="filtro-select" id="filtro-ordina">
+        <option value="recenti">Più recenti</option>
+        <option value="score">Score migliore</option>
+        <option value="roi">ROI migliore</option>
+        <option value="profitto">Profitto maggiore</option>
+        <option value="prezzo_asc">Prezzo crescente</option>
+        <option value="affidabilita">Affidabilità</option>
+      </select>
+    </div>
+
+    <div style="margin-top:16px">
+      <button class="btn" id="btn-grafico" onclick="toggleGrafico()">📈 Grafico prezzi</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="stats-bar" id="stats-bar" style="display:none">
+      <div class="stat-card"><div class="sv" id="sg-totale">—</div><div class="sl">Annunci nel filtro</div></div>
+      <div class="stat-card"><div class="sv" id="sg-roi">—</div><div class="sl">ROI medio</div></div>
+      <div class="stat-card"><div class="sv" id="sg-score">—</div><div class="sl">Score medio</div></div>
+      <div class="stat-card"><div class="sv" id="sg-affari">—</div><div class="sl">Affari trovati</div></div>
+    </div>
+
+    <div class="chart-wrap" id="chart-wrap">
+      <h3>📈 Andamento prezzi nel tempo</h3>
+      <canvas id="priceChart" height="80"></canvas>
+    </div>
+
+    <div class="feed-header">
+      <h2 id="feed-titolo">Tutti gli annunci</h2>
+    </div>
+    <div class="feed" id="feed"><div class="loading">Caricamento...</div></div>
+  </main>
+</div>
+
+<script>
+let stato = { profilo:"", soloAffari:false, piattaforma:"", ordina:"recenti",
+              q:"", marca:"", modello:"", colore:"", taglia:"", roiMin:"", scoreMin:"" };
+let graficoPrezzi = null;
+let graficoProfilo = "";
+
+function escapeHtml(s) {
+  const d = document.createElement("div"); d.textContent = s||""; return d.innerHTML;
+}
+
+async function caricaProfili() {
+  const res = await fetch("/api/profili");
+  const profili = await res.json();
+  const stats = await (await fetch("/api/statistiche_globali")).json();
+
+  document.getElementById("stat-totale").textContent = stats.totale_annunci;
+  document.getElementById("stat-affari").textContent = stats.totale_affari;
+  document.getElementById("stat-roi").textContent = stats.roi_medio ? stats.roi_medio + "%" : "—";
+  document.getElementById("stat-score").textContent = stats.score_medio ? stats.score_medio : "—";
+  document.getElementById("count-tutti").textContent = stats.totale_annunci;
+
+  const lista = document.getElementById("lista-profili");
+  lista.innerHTML = `<div class="profilo-item active" data-profilo="">
+    <span>Tutti</span><span class="count" id="count-tutti">${stats.totale_annunci}</span>
+  </div>`;
+  lista.querySelector('[data-profilo=""]').addEventListener("click", e => selezionaProfilo("", e.currentTarget));
+
+  profili.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "profilo-item";
+    div.dataset.profilo = p.profilo_ricerca;
+    const roi = p.roi_medio ? ` · ROI ${p.roi_medio.toFixed(0)}%` : "";
+    div.innerHTML = `<span>${escapeHtml(p.profilo_ricerca)}</span><span class="count">${p.totale}${roi}</span>`;
+    div.addEventListener("click", () => selezionaProfilo(p.profilo_ricerca, div));
+    lista.appendChild(div);
+  });
+}
+
+function selezionaProfilo(nome, el) {
+  stato.profilo = nome;
+  document.querySelectorAll(".profilo-item").forEach(e => e.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("feed-titolo").textContent = nome || "Tutti gli annunci";
+  caricaAnnunci();
+  if (graficoProfilo !== nome) { graficoProfilo = nome; caricaGrafico(nome); }
+}
+
+function formattaSconto(a) {
+  if (!a.prezzo_medio_mercato) return null;
+  const p = ((1 - a.prezzo / a.prezzo_medio_mercato) * 100).toFixed(0);
+  return p > 0 ? `-${p}% vs media (${a.prezzo_medio_mercato}€)` : `+${Math.abs(p)}% vs media`;
+}
+
+function renderCard(a) {
+  const isAffare = a.is_affare === 1;
+  const isSospetto = a.punteggio_affidabilita !== null && a.punteggio_affidabilita < 50;
+  const thumb = a.foto_url
+    ? `<div class="card-thumb" style="background-image:url('${a.foto_url}')"></div>`
+    : `<div class="card-thumb">NO FOTO</div>`;
+
+  const tags = [];
+  if (isAffare) tags.push(`<span class="tag affare">AFFARE</span>`);
+  if (a.limited_edition) tags.push(`<span class="tag limited">LIMITED</span>`);
+  if (isSospetto) tags.push(`<span class="tag sospetto">ATTENZIONE</span>`);
+
+  const modelloRiga = (a.modello || a.edizione)
+    ? `<div class="card-modello">${escapeHtml([a.modello, a.edizione].filter(Boolean).join(" · "))}</div>`
+    : "";
+
+  let roiRiga = "";
+  if (a.roi_stimato !== null && a.roi_stimato !== undefined) {
+    const cl = a.roi_stimato > 15 ? "roi-pos" : a.roi_stimato < 0 ? "roi-neg" : "";
+    roiRiga = `<div class="roi-row ${cl}">ROI ${a.roi_stimato}% · Profitto ~${a.profitto_stimato || "?"}€</div>`;
+  } else if (a.prezzo_medio_mercato) {
+    const s = formattaSconto(a);
+    if (s) roiRiga = `<div class="media">${s}</div>`;
+  }
+
+  const colorInfo = a.colore_principale ? ` · ${a.colore_principale}` : "";
+
+  return `
+    <div class="card ${isAffare?"is-affare":""} ${isSospetto?"is-sospetto":""}">
+      ${thumb}
+      <div class="card-body">
+        <div class="card-title">${escapeHtml(a.titolo)}</div>
+        ${modelloRiga}
+        <div class="card-meta">
+          <span class="platform-tag">${escapeHtml(a.piattaforma)}</span>
+          ${a.marca ? `<span>${escapeHtml(a.marca)}</span>` : ""}
+          ${a.taglia ? `<span>taglia ${escapeHtml(a.taglia)}</span>` : ""}
+          ${colorInfo ? `<span>${escapeHtml(colorInfo)}</span>` : ""}
+          ${a.condizione ? `<span>${escapeHtml(a.condizione)}</span>` : ""}
+        </div>
+        <div class="card-tags">${tags.join("")}</div>
+      </div>
+      <div class="card-price">
+        <div class="price ${isAffare?"affare":""}">${a.prezzo} ${a.valuta||"€"}</div>
+        ${roiRiga}
+        ${a.punteggio_affidabilita !== null ? `<div class="media">Affid. ${a.punteggio_affidabilita}/100</div>` : ""}
+        ${a.score_finale !== null ? `<div class="media">Score ${(a.score_finale||0).toFixed(0)}/100</div>` : ""}
+        <a class="apri" href="${a.url}" target="_blank" rel="noopener">Apri →</a>
+      </div>
+    </div>`;
+}
+
+async function caricaAnnunci() {
+  const feed = document.getElementById("feed");
+  feed.innerHTML = `<div class="loading">Caricamento...</div>`;
+
+  const params = new URLSearchParams();
+  if (stato.profilo) params.set("profilo", stato.profilo);
+  if (stato.soloAffari) params.set("solo_affari", "1");
+  if (stato.piattaforma) params.set("piattaforma", stato.piattaforma);
+  params.set("ordina", stato.ordina);
+  if (stato.q) params.set("q", stato.q);
+  if (stato.marca) params.set("marca", stato.marca);
+  if (stato.modello) params.set("modello", stato.modello);
+  if (stato.colore) params.set("colore", stato.colore);
+  if (stato.taglia) params.set("taglia", stato.taglia);
+  if (stato.roiMin) params.set("roi_min", stato.roiMin);
+  if (stato.scoreMin) params.set("score_min", stato.scoreMin);
+
+  const res = await fetch(`/api/annunci?${params.toString()}`);
+  const annunci = await res.json();
+
+  // Aggiorna stats bar
+  const sb = document.getElementById("stats-bar");
+  if (annunci.length > 0) {
+    sb.style.display = "grid";
+    document.getElementById("sg-totale").textContent = annunci.length;
+    const roi = annunci.filter(a => a.roi_stimato !== null);
+    document.getElementById("sg-roi").textContent =
+      roi.length ? (roi.reduce((s,a) => s+a.roi_stimato,0)/roi.length).toFixed(1)+"%" : "—";
+    const sc = annunci.filter(a => a.score_finale !== null);
+    document.getElementById("sg-score").textContent =
+      sc.length ? (sc.reduce((s,a) => s+a.score_finale,0)/sc.length).toFixed(0) : "—";
+    document.getElementById("sg-affari").textContent = annunci.filter(a => a.is_affare).length;
+  } else {
+    sb.style.display = "none";
+  }
+
+  if (annunci.length === 0) {
+    feed.innerHTML = `<div class="empty-state">◌<br>Nessun annuncio con questi filtri.<br>Lo scanner continua a cercare in background.</div>`;
+    return;
+  }
+  feed.innerHTML = annunci.map(renderCard).join("");
+}
+
+async function caricaGrafico(profilo) {
+  if (!profilo) { document.getElementById("chart-wrap").classList.remove("visible"); return; }
+  const res = await fetch(`/api/trend/${encodeURIComponent(profilo)}`);
+  const dati = await res.json();
+  if (!dati.length) return;
+
+  const wrap = document.getElementById("chart-wrap");
+  if (!wrap.classList.contains("visible")) return;
+
+  if (graficoPrezzi) graficoPrezzi.destroy();
+  const ctx = document.getElementById("priceChart").getContext("2d");
+  graficoPrezzi = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: dati.map(d => d.giorno),
+      datasets: [{
+        label: "Prezzo medio",
+        data: dati.map(d => d.prezzo_medio),
+        borderColor: "#4fd1a5", backgroundColor: "rgba(79,209,165,.1)",
+        tension: .4, fill: true,
+      }]
+    },
+    options: {
+      responsive: true, plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#74909f" }, grid: { color: "#1f3a4d" } },
+        y: { ticks: { color: "#74909f" }, grid: { color: "#1f3a4d" } }
+      }
+    }
+  });
+}
+
+function toggleGrafico() {
+  const w = document.getElementById("chart-wrap");
+  const btn = document.getElementById("btn-grafico");
+  if (w.classList.toggle("visible")) {
+    btn.classList.add("active");
+    caricaGrafico(stato.profilo);
+  } else {
+    btn.classList.remove("active");
+  }
+}
+
+// Debounce per i campi testo: non interroga ad ogni tasto
+let debounceTimer;
+function debounce(fn, ms) { clearTimeout(debounceTimer); debounceTimer = setTimeout(fn, ms); }
+
+document.getElementById("filtro-solo-affari").addEventListener("change", e => { stato.soloAffari = e.target.checked; caricaAnnunci(); });
+document.getElementById("filtro-piattaforma").addEventListener("change", e => { stato.piattaforma = e.target.value; caricaAnnunci(); });
+document.getElementById("filtro-ordina").addEventListener("change", e => { stato.ordina = e.target.value; caricaAnnunci(); });
+document.getElementById("filtro-q").addEventListener("input", e => { stato.q = e.target.value; debounce(caricaAnnunci, 400); });
+document.getElementById("filtro-marca").addEventListener("input", e => { stato.marca = e.target.value; debounce(caricaAnnunci, 400); });
+document.getElementById("filtro-modello").addEventListener("input", e => { stato.modello = e.target.value; debounce(caricaAnnunci, 400); });
+document.getElementById("filtro-colore").addEventListener("input", e => { stato.colore = e.target.value; debounce(caricaAnnunci, 400); });
+document.getElementById("filtro-taglia").addEventListener("input", e => { stato.taglia = e.target.value; debounce(caricaAnnunci, 400); });
+document.getElementById("filtro-roi-min").addEventListener("input", e => { stato.roiMin = e.target.value; debounce(caricaAnnunci, 400); });
+document.getElementById("filtro-score-min").addEventListener("input", e => { stato.scoreMin = e.target.value; debounce(caricaAnnunci, 400); });
+
+caricaProfili();
+caricaAnnunci();
+setInterval(() => { caricaProfili(); caricaAnnunci(); }, 30000);
+</script>
+</body>
+</html>
